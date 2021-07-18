@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.study.data.service.IDataCaseDao">
+
+	<sql id="align">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchAlign)">
+			<choose>
+				<when test='searchAlign=="hot"'>ORDER BY case_id</when>
+			 	<when test='searchAlign=="new"'>ORDER BY case_year DESC</when>
+			 	<when test='searchAlign=="low"'>ORDER BY case_price</when>
+			 	<when test='searchAlign=="high"'>ORDER BY case_price DESC</when>
+			 </choose> 
+		</if>
+	</sql>
+	
+	<sql id="search">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchWord)">
+			AND LOWER(case_name) LIKE '%'|| #{searchWord} || '%'
+			OR UPPER(case_name) LIKE '%'|| #{searchWord} || '%'
+		</if>
+	</sql>
+
+	<sql id="recMain">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(main)">
+			WHERE main_id = #{main}
+		</if>
+		<if test="@org.apache.commons.lang3.StringUtils@isBlank(main)">
+			WHERE main_id = 'main_0037'
+		</if>
+	</sql>
+	<sql id="recPower">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(power)">
+			WHERE po_id = #{power}
+		</if>
+		<if test="@org.apache.commons.lang3.StringUtils@isBlank(power)">
+			WHERE po_id = 'power_0034'
+		</if>
+	</sql>
+	<sql id="recGpu">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(gpu)">
+			WHERE gpu_id = #{gpu}
+		</if>
+		<if test="@org.apache.commons.lang3.StringUtils@isBlank(gpu)">
+			WHERE gpu_id = 'gpu_0035'
+		</if>
+	</sql>
+
+	<select id="getDataCount" parameterType="com.study.data.vo.DataSearchVO" resultType="int">
+		SELECT COUNT(*)
+		FROM case
+		WHERE 1 = 1
+		AND case_price > 0
+		<include refid="search"></include>
+	</select>
+	
+	<!-- return 타입이 List일 때 <>안에 있는것을 작성 -->
+	<select id="getDataList" parameterType="com.study.data.vo.DataSearchVO" resultType="com.study.data.vo.DataCaseVO">
+		SELECT case_id AS id
+			,  case_year AS year
+            ,  case_name AS name
+            ,  case_price AS price
+            ,  case_img AS img
+            ,  case_url AS url
+		FROM (
+		    SELECT rownum as rnum
+		        ,  a.*
+		        FROM(SELECT case_id 
+						,  case_year 
+			            ,  case_name 
+			            ,  case_price 
+			            ,  case_img 
+			            ,  case_url 
+		            FROM case
+		            WHERE 1=1
+		            AND case_price > 0
+		            <include refid="search"></include>
+		            <include refid="align"></include>
+		            ) a
+		)
+		where rnum between #{firstRow} and #{lastRow}
+	</select>
+	
+	<select id="getData" parameterType="com.study.data.vo.DataRecVO" resultType="com.study.data.vo.DataCaseVO">
+		SELECT a.id AS id
+		    ,  a.year AS year
+		    ,  a.name AS name
+		    ,  a.price AS price
+		    ,  a.img AS img
+		    ,  a.url AS url
+		FROM (SELECT case_id AS id
+		    ,  case_year AS year
+		    ,  case_name AS name
+		    ,  case_price AS price
+		    ,  case_img AS img
+		    ,  case_url AS url
+		    ,  ROWNUM AS rnum
+		        FROM CASE
+		        WHERE REPLACE(REPLACE(case_mount_gpu, 'mm', ''),'최대 ', '') >= (SELECT NVL(REPLACE(gpu_length, 'mm', ''), 300)
+		                                                                        FROM gpu
+		                                                                        <include refid="recGpu"></include>
+		                                                                        )
+		        AND case_board LIKE '%'|| (SELECT main_form
+		                                        FROM mainboard
+		                                        <include refid="recMain"></include>
+		                                        ) ||'%'
+		        AND case_power LIKE '%' || (SELECT REPLACE(REPLACE(po_type, ' 파워', ''), '(SFX)', '')
+		                                    FROM power
+		                                    <include refid="recPower"></include>
+		                                    ) || '%'
+		        AND case_price BETWEEN #{price}*1/20 AND #{price}*2/20) a
+		WHERE rnum = (SELECT TRUNC(DBMS_RANDOM.VALUE(1, (SELECT COUNT(*)
+		                                                    FROM CASE
+		                                                    WHERE REPLACE(REPLACE(case_mount_gpu, 'mm', ''),'최대 ', '') >= (SELECT NVL(REPLACE(gpu_length, 'mm', ''), 300)
+			                                                                                                                    FROM gpu
+			                                                                                                                    <include refid="recGpu"></include>
+			                                                                                                                    )
+		                                                    AND case_board LIKE '%'|| (SELECT main_form
+		                                                                                    FROM mainboard
+		                                                                                    <include refid="recMain"></include>
+		                                                                                    ) ||'%'
+		                                                    AND case_power LIKE '%' || (SELECT REPLACE(REPLACE(po_type, ' 파워', ''), '(SFX)', '')
+		                                                                                FROM power
+		                                                                                <include refid="recPower"></include>
+		                                                                                ) || '%'
+		                                                    AND case_price BETWEEN #{price}*1/20 AND #{price}*2/20
+		                                                                                ))) 
+		                FROM dual)
+	</select>
+	
+</mapper>

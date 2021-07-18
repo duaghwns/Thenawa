@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.study.joongo.service.IJoongoDao">
+
+<sql id="search">
+	<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchWord)">
+		 <choose>
+		 	<when test='searchType=="T"'>AND jg_title LIKE '%' || #{searchWord} || '%' </when>
+		 	<when test='searchType=="W"'>AND jg_writer LIKE '%' || #{searchWord} || '%' </when>
+		 	<when test='searchType=="C"'>AND jg_content LIKE '%'|| #{searchWord} || '%' </when>
+		 	<when test='searchType=="S"'>AND jg_item_name LIKE '%'|| #{searchWord} || '%' </when>
+		 </choose> 
+	</if>
+</sql>
+<sql id="search2">
+	<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchWord)">
+		 <choose>
+		 	<when test='searchSales=="판매중"'>AND sales LIKE '판매중' </when>
+		 	<when test='searchSales=="판매완료"'>AND sales LIKE '판매완료' </when>
+		 	<when test='searchSales=="예약중"'>AND sales LIKE '예약중' </when>
+		 </choose> 
+	</if>
+</sql>
+
+	<select id="getBoardCount"
+		parameterType="com.study.joongo.vo.joongoVO" resultType="int">
+		SELECT
+		COUNT(*)
+		FROM joongo
+		WHERE 1 = 1
+		and jg_del_yn = 'N'
+		<include refid="search" />
+		<include refid="search2" />
+	</select>
+
+	<select id="list" resultType="com.study.joongo.vo.joongoVO"
+		parameterType="com.study.joongo.vo.JoongoSearchVO">
+		SELECT *
+FROM (
+    SELECT b.*
+           , ROWNUM AS rnum
+    FROM (
+        SELECT jg_no
+               , jg_title
+               , jg_writer
+               , jg_content
+               , jg_hit
+               , jg_reg_date
+               , jg_mod_date
+               , jg_del_yn
+               , jg_item_name
+               , to_char(item_price, '999,999,999,999,999') AS item_price
+               , sales
+        FROM joongo 
+        WHERE jg_del_yn = 'N'
+        <include refid="search" />
+        <include refid="search2" />
+        ORDER BY jg_no DESC
+    ) b
+) c
+WHERE rnum BETWEEN #{firstRow} AND #{lastRow}
+		
+	</select>
+
+	<select id="getBoard" resultType="com.study.joongo.vo.joongoVO"
+		parameterType="int">
+		SELECT jg_no,
+		jg_title,
+		jg_writer,
+		jg_content,
+		jg_item_name,
+		jg_reg_date,
+		jg_mod_date,
+		to_char(item_price,'fm999,999,999,999,999') as item_price
+		,sales
+		,item_img_new_name
+		,jg_hit
+		FROM
+		joongo
+		where jg_no = #{jgNo}
+	</select>
+
+	<update id="increaseHit" parameterType="int">
+		update joongo set
+		jg_hit =
+		jg_hit +1
+		where jg_no = #{jgNo}
+	</update>
+
+	<insert id="insertBoard"
+		parameterType="com.study.joongo.vo.joongoVO">
+		INSERT
+    INTO joongo (
+        jg_no
+        , jg_title
+        , jg_item_name
+        , jg_writer
+        , jg_content
+        , jg_hit
+        , jg_reg_date
+        , jg_mod_date
+        , jg_del_yn
+        , item_price
+        , sales
+        , jg_item_img
+        , item_img_new_name
+    )
+VALUES (
+		SEQ_JOONGO_BOARD.nextval
+		, #{jgTitle}
+		,#{jgItemName}
+		,#{jgWriter}
+		, #{jgContent}
+		, 0
+		,sysdate
+		, null
+		, 'N'
+		, #{itemPrice}
+        , '판매중'
+        , #{jgItemImg}
+        , #{itemImgNewName}
+		)
+	</insert>
+	<update id="updateBoard"
+		parameterType="com.study.joongo.vo.joongoVO">
+		UPDATE joongo
+		SET
+		jg_title =	#{jgTitle},
+		jg_writer = #{jgWriter},
+		jg_content = #{jgContent},
+		jg_mod_date = sysdate,
+		jg_item_name = #{jgItemName},
+		item_price = replace(#{itemPrice},',','') ,
+		sales = #{sales},
+		jg_item_img = #{jgItemImg}
+		WHERE jg_no = #{jgNo}
+	
+	</update>
+
+	<update id="deleteBoard"
+		parameterType="com.study.joongo.vo.joongoVO">
+		update joongo set
+		jg_del_yn = 'Y'
+		where jg_no = #{jgNo}
+	</update>
+
+
+</mapper>

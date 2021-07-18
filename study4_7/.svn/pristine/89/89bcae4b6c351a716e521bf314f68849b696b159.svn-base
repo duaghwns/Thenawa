@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.study.data.service.IDataCartDao">
+
+	
+	<!-- return 타입이 List일 때 <>안에 있는것을 작성 -->
+	<select id="getCartList" parameterType="String" resultType="com.study.data.vo.DataCartVO">
+		SELECT a.cart_no AS cart_no
+		    ,  a.cart_mem AS cart_mem
+		    ,  a.cart_item AS cart_item
+		    ,  a.cart_cnt AS cart_cnt
+		    ,  b.item_name AS cart_name
+		    ,  b.item_price AS cart_price
+		    ,  b.item_img AS cart_img
+		    ,  b.item_url AS cart_url
+		FROM cart a, item b
+		WHERE a.cart_item = b.item_id 
+		AND a.cart_cnt > 0
+		AND a.cart_mem = #{userId }
+		ORDER BY 1
+	</select>
+	
+	<update id="deleteCart" parameterType="com.study.data.vo.DataCartVO">
+		UPDATE cart SET cart_cnt= 0
+		WHERE cart_mem = #{cartMem }
+		AND cart_item = #{cartItem }
+		AND cart_cnt > 0
+		AND ROWNUM = 1
+	</update>
+	
+	<update id="allDelete" parameterType="String">
+		UPDATE cart SET cart_cnt= 0
+		WHERE cart_mem =#{cartNo}
+	</update>
+	
+	<select id="getCart" parameterType="String" resultType="com.study.data.vo.DataCartVO">
+		SELECT a.cart_no AS cart_no
+		    ,  a.cart_mem AS cart_mem
+		    ,  a.cart_item AS cart_item
+		    ,  a.cart_cnt AS cart_cnt
+		    ,  b.item_name AS cart_name
+		    ,  b.item_price AS cart_price
+		    ,  b.item_img AS cart_img
+		    ,  b.item_url AS cart_url
+		FROM cart a, item b
+		WHERE a.cart_item = b.item_id 
+		AND a.cart_no= #{monkey}
+	</select>
+	
+	<insert id="insertCart" parameterType="com.study.data.vo.DataCartVO">
+		INSERT INTO cart VALUES (
+<!-- 			(SELECT TO_CHAR(COUNT(*)+1) FROM cart) -->
+<!-- 			(select nvl(max(to_number(cart_no)),0)+1 from cart) -->
+			ex_seq.nextval
+			, #{cartMem}
+			, #{cartItem}
+			, 1
+		)
+	</insert>
+	
+	<insert id="insertOrder" parameterType="com.study.data.vo.DataCartVO">
+		INSERT INTO ORDER_INFO VALUES (
+			ORDER_SEQ.nextval
+			, #{cartMem}
+			, #{cartItem}
+			, SYSDATE
+			, 1
+		)
+	</insert>
+	
+	<select id="curVal" resultType="int">
+		SELECT MAX(TO_NUMBER(cart_no)) FROM cart
+	</select>
+</mapper>

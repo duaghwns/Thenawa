@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.study.data.service.IDataMemoryDao">
+
+	<sql id="align">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchAlign)">
+			<choose>
+				<when test='searchAlign=="hot"'>ORDER BY memory_id</when>
+			 	<when test='searchAlign=="new"'>ORDER BY memory_year DESC</when>
+			 	<when test='searchAlign=="low"'>ORDER BY memory_price</when>
+			 	<when test='searchAlign=="high"'>ORDER BY memory_price DESC</when>
+			 </choose> 
+		</if>
+	</sql>
+	
+	<sql id="search">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchWord)">
+			AND LOWER(memory_name) LIKE '%'|| #{searchWord} || '%' 
+			OR UPPER(memory_name) LIKE '%'|| #{searchWord} || '%'
+		</if>
+	</sql>
+
+	<sql id="recMain">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(main)">
+			WHERE main_id = #{main}
+		</if>
+		<if test="@org.apache.commons.lang3.StringUtils@isBlank(main)">
+			WHERE main_id = 'main_0002'
+		</if>
+	</sql>
+	<sql id="recCpu">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(cpu)">
+			WHERE cpu_id = #{cpu}
+		</if>
+		<if test="@org.apache.commons.lang3.StringUtils@isBlank(cpu)">
+			WHERE cpu_id = 'cpu_0002'
+		</if>
+	</sql>
+
+	<select id="getDataCount" parameterType="com.study.data.vo.DataSearchVO" resultType="int">
+		SELECT COUNT(*)
+		FROM memory
+		WHERE 1 = 1
+		AND memory_price > 0
+		<include refid="search"></include>
+	</select>
+	
+	<!-- return 타입이 List일 때 <>안에 있는것을 작성 -->
+	<select id="getDataList" parameterType="com.study.data.vo.DataSearchVO" resultType="com.study.data.vo.DataMemoryVO">
+		SELECT memory_id AS id
+			,  memory_year AS year
+            ,  memory_name AS name
+            ,  memory_price AS price
+            ,  memory_img AS img
+            ,  memory_url AS url
+		FROM (
+		    SELECT rownum as rnum
+		        ,  a.*
+		        FROM(SELECT memory_id 
+						,  memory_year 
+			            ,  memory_name 
+			            ,  memory_price 
+			            ,  memory_img 
+			            ,  memory_url 
+		            FROM memory
+		            WHERE 1=1
+		            AND memory_price > 0
+		            <include refid="search"></include>
+		            <include refid="align"></include>
+		            ) a
+		)
+		where rnum between #{firstRow} and #{lastRow}
+	</select>
+	
+	<select id="getData" parameterType="com.study.data.vo.DataRecVO" resultType="com.study.data.vo.DataMemoryVO">
+		SELECT a.id AS id
+		    ,  a.year AS year
+		    ,  a.name AS name
+		    ,  a.price AS price
+		    ,  a.img AS img
+		    ,  a.url AS url
+		FROM (SELECT memory_id AS id
+		    ,  memory_year AS year
+		    ,  memory_name AS name
+		    ,  memory_price AS price
+		    ,  memory_img AS img
+		    ,  memory_url AS url
+		    ,  ROWNUM AS rnum
+		        FROM memory
+		        WHERE memory_type = (SELECT cpu_memory_type
+		                            FROM cpu
+		                            <include refid="recCpu"></include>
+		                            )
+		        AND memory_type = (SELECT main_memory_type
+		                            FROM mainboard
+		                            <include refid="recMain"></include>
+		                            )
+		        AND memory_price BETWEEN #{price}*1/20 AND #{price}*1/10) a
+		WHERE rnum = (SELECT TRUNC(DBMS_RANDOM.VALUE(1, (SELECT COUNT(*)
+		                                                FROM memory
+		                                                WHERE memory_type = (SELECT cpu_memory_type
+		                                                                    FROM cpu
+		                                                                    <include refid="recCpu"></include>
+		                                                                    )
+		                                                AND memory_type = (SELECT main_memory_type
+		                                                                    FROM mainboard
+		                                                                    <include refid="recMain"></include>
+		                                                                    )
+		                                                AND memory_price BETWEEN #{price}*1/20 AND #{price}*1/10) ))
+		                FROM dual)
+	</select>
+	
+</mapper>

@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.study.qna.service.IQnaBoardDao">
+
+<sql id="search">
+	<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchWord)">
+		 <choose>
+		 	<when test='searchType=="T"'>AND bo_title LIKE '%' || #{searchWord} || '%' </when>
+		 	<when test='searchType=="W"'>AND bo_writer LIKE '%' || #{searchWord} || '%' </when>
+		 	<when test='searchType=="C"'>AND bo_content LIKE '%'|| #{searchWord} || '%' </when>
+		 </choose> 
+	</if>
+</sql>
+
+<select id="getBoardCount" resultType="int"
+		parameterType="com.study.qna.vo.QnaBoardSearchVO">
+		SELECT COUNT(*) FROM qna_board
+		WHERE 1=1
+		<include refid="search"></include>
+</select>
+
+<select id="nextBono" resultType="int">
+		SELECT qna_seq.NEXTVAL
+		FROM DUAL
+</select>
+
+<select id="getBoardList"
+		resultType="com.study.qna.vo.QnaBoardVO"
+		parameterType="com.study.qna.vo.QnaBoardSearchVO">
+		SELECT * FROM
+		(SELECT 
+		   (SELECT
+			COUNT(*)
+			FROM reply
+			WHERE reply.re_parent_no = bo_no
+			AND 
+			re_category='QNA') as bo_reply_count,
+			a.*,ROWNUM AS rnum FROM (
+		SELECT 
+		bo_no, 
+		bo_title, 
+		bo_writer, 
+		bo_content,
+		bo_pass, 
+		bo_hit,
+		bo_parent_no,
+   	    bo_group_order,
+        bo_group_depth,
+		to_char(bo_reg_date,'YYYY-MM-DD') AS bo_reg_date,
+		to_char(bo_mod_date,'YYYY-MM-DD') AS bo_mod_date,
+		bo_del_yn
+		FROM qna_board
+		WHERE 1=1 AND bo_del_yn = 'N'
+		<include refid="search"></include>
+		ORDER BY bo_parent_no DESC, bo_group_order ASC
+		) a ) b
+		WHERE rnum BETWEEN #{firstRow} AND #{lastRow}
+</select>
+
+<select id="getBoard" resultType="com.study.qna.vo.QnaBoardVO"
+		parameterType="int">
+		SELECT
+		bo_no, 
+		bo_title, 
+		bo_writer, 
+		bo_pass, 
+		bo_content,
+		bo_hit,
+		bo_parent_no,
+   	    bo_group_order,
+        bo_group_depth,
+		to_char(bo_reg_date,'YYYY-MM-DD') AS bo_reg_date,
+		to_char(bo_mod_date,'YYYY-MM-DD') AS bo_mod_date,
+		bo_del_yn
+		FROM qna_board
+		WHERE bo_no = #{boNo}
+</select>
+
+<update id="increaseHit" parameterType="int">
+		UPDATE qna_board SET
+		bo_hit= bo_hit+1
+		WHERE bo_no = #{boNo}
+</update>
+
+<update id="updateBoard"  parameterType="com.study.qna.vo.QnaBoardVO">
+		UPDATE qna_board SET
+		bo_title= #{boTitle} ,
+		bo_content= #{boContent} ,
+		bo_mod_date= sysdate
+		WHERE bo_no = #{boNo}
+</update>
+
+<update id="deleteBoard"
+		parameterType="com.study.qna.vo.QnaBoardVO">
+		UPDATE qna_board SET bo_del_yn= 'Y'
+		WHERE bo_no =#{boNo}
+</update>
+
+
+<insert id="insertBoard" parameterType="com.study.qna.vo.QnaBoardVO">
+	INSERT INTO qna_board (
+    bo_no,
+    bo_title,
+    bo_writer,
+    bo_content,
+    bo_pass,
+    bo_hit,
+    bo_parent_no,
+    bo_group_order,
+    bo_group_depth,
+    bo_reg_date,
+    bo_mod_date,
+    bo_del_yn
+	) VALUES (
+    #{boNo},
+    #{boTitle},
+    #{boWriter},
+    #{boContent},
+    #{boPass},
+    0,
+    #{boParentNo},
+    #{boGroupOrder},
+    #{boGroupDepth},
+    SYSDATE,
+    SYSDATE,
+    'N'
+	)
+</insert>
+
+<update id="updateBoardOrderd" parameterType="com.study.qna.vo.QnaBoardVO">
+	UPDATE qna_board 
+	   SET bo_group_order = bo_group_order + 1
+	 WHERE bo_parent_no = #{boParentNo}
+	   AND bo_group_order >= #{boGroupOrder}
+</update>
+</mapper>

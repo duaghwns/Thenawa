@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.study.data.service.IDataBoardDao">
+
+	<!-- cache 에 있는 내용이면 DB연결을 또 하지 않고 결과를 가져다줌, VO에 Serializable 상속 받아야 에러안남 -->
+	<cache />
+
+	<select id="getBoardCount" parameterType="com.study.data.vo.DataSearchVO" resultType="int">
+		SELECT COUNT(*)
+		FROM data_board
+		WHERE 1 = 1
+	</select>
+	
+	<!-- return 타입이 List일 때 <>안에 있는것을 작성 -->
+	<select id="getBoardList" parameterType="com.study.data.vo.DataSearchVO" resultType="dataBoard">
+		SELECT bo_no,
+				bo_title,
+				bo_category,
+				bo_writer,
+			 	bo_ip,
+				bo_hit,
+				TO_CHAR(bo_reg_date,'YYYY-MM-DD') AS bo_reg_date
+		FROM data_board
+		WHERE 1 = 1
+	</select>
+	
+	<select id="getBoard" parameterType="int" resultType="dataBoard">
+		SELECT bo_no,
+				bo_title,
+				bo_category,
+		       bo_writer,
+		       bo_pass,
+		       bo_content,
+		       bo_ip,
+		       bo_hit,
+		       TO_CHAR(bo_reg_date, 'YYYY-MM-DD') AS bo_reg_date,
+		       TO_CHAR(bo_mod_date, 'YYYY-MM-DD') AS bo_mod_date,
+		       bo_del_yn
+		FROM data_board
+		WHERE bo_no = #{monkey} /* 매개변수가 프리미티브일때는 이름 맘대로 */
+	</select>
+	
+	<insert id="insertBoard" parameterType="dataBoard">
+		<selectKey keyProperty="boNo" resultType="int" order="BEFORE">
+			SELECT seq_data_board.nextval FROM dual
+		</selectKey>
+		
+	
+	
+		INSERT INTO data_board (
+			    bo_no, bo_title, bo_category
+			    , bo_writer, bo_pass, bo_content
+			    , bo_ip, bo_hit, bo_reg_date, bo_mod_date
+			    , bo_del_yn
+			) VALUES (
+			    #{boNo}
+			    , #{boTitle}
+			    , #{boCategory}
+			    , #{boWriter}
+			    , #{boPass}
+			    , #{boContent}
+			    , #{boIp}
+			    , 0
+			    , sysdate
+			    , null
+			    , 'N'
+			)
+
+	</insert>
+</mapper>

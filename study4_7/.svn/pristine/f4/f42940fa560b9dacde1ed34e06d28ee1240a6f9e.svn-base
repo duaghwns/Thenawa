@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.study.data.service.IDataMainboardDao">
+
+	<sql id="align">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchAlign)">
+			<choose>
+				<when test='searchAlign=="hot"'>ORDER BY main_id</when>
+			 	<when test='searchAlign=="new"'>ORDER BY main_year DESC</when>
+			 	<when test='searchAlign=="low"'>ORDER BY main_price</when>
+			 	<when test='searchAlign=="high"'>ORDER BY main_price DESC</when>
+			 </choose> 
+		</if>
+	</sql>
+	
+	<sql id="search">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchWord)">
+			AND LOWER(main_name) LIKE '%'|| #{searchWord} || '%'
+			OR UPPER(main_name) LIKE '%'|| #{searchWord} || '%'
+		</if>
+	</sql>
+	
+	<sql id="recMemory">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(memory)">
+			WHERE memory_id = #{memory}
+		</if>
+		<if test="@org.apache.commons.lang3.StringUtils@isBlank(memory)">
+			WHERE memory_id = 'memory_0001'
+		</if>
+	</sql>
+	<sql id="recCpu">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(cpu)">
+			WHERE cpu_id = #{cpu}
+		</if>
+		<if test="@org.apache.commons.lang3.StringUtils@isBlank(cpu)">
+			WHERE cpu_id = 'cpu_0002'
+		</if>
+	</sql>
+	
+	<sql id="adsPurpose">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(memPurpose)">
+			AND b.mem_purpose = #{memPurpose}
+		</if>
+		<if test="@org.apache.commons.lang3.StringUtils@isBlank(memPurpose)">
+			AND b.mem_purpose = 'GAME'
+		</if>
+	</sql>
+	
+	<sql id="adsAge">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(memBir)">
+			AND TRUNC(TO_CHAR(sysdate, 'yyyy') - TO_CHAR(b.mem_bir, 'yyyy'), -1) = TRUNC(TO_CHAR(sysdate, 'yyyy') - TO_CHAR(TO_DATE(#{memBir}), 'yyyy'), -1)
+		</if>
+		<if test="@org.apache.commons.lang3.StringUtils@isBlank(memBir)">
+			AND TRUNC(TO_CHAR(sysdate, 'yyyy') - TO_CHAR(b.mem_bir, 'yyyy'), -1) = 20
+		</if>
+	</sql>
+
+
+	<select id="getDataCount" parameterType="com.study.data.vo.DataSearchVO" resultType="int">
+		SELECT COUNT(*)
+		FROM mainboard
+		WHERE main_form in ('M-ATX', 'ATX')
+		AND main_price > 0
+		<include refid="search"></include>
+	</select>
+	
+	<!-- return 타입이 List일 때 <>안에 있는것을 작성 -->
+	<select id="getDataList" parameterType="com.study.data.vo.DataSearchVO" resultType="com.study.data.vo.DataMainboardVO">
+		SELECT main_id AS id
+			,  main_year AS year
+            ,  main_name AS name
+            ,  main_price AS price
+            ,  main_img AS img
+            ,  main_url AS url
+            ,  main_cpu_socket
+            ,  main_form
+            ,  main_power
+            ,  main_memory_type
+            ,  main_memory_capacity
+            ,  main_sata3
+            ,  main_m2
+            ,  main_pcle1
+		FROM (
+		    SELECT rownum as rnum
+		        ,  a.*
+		        FROM(SELECT main_id 
+						,  main_year 
+			            ,  main_name
+			            ,  main_price 
+			            ,  main_img
+			            ,  main_url 
+		                ,  main_cpu_socket
+		                ,  main_form
+		                ,  main_power
+		                ,  main_memory_type
+		                ,  main_memory_capacity
+		                ,  main_sata3
+		                ,  main_m2
+		                ,  main_pcle1
+		            FROM mainboard
+		            WHERE main_form in ('M-ATX', 'ATX')
+		            AND main_price > 0
+		            <include refid="search"></include>
+		            <include refid="align"></include>
+		            ) a
+		)
+		where rnum between #{firstRow} and #{lastRow}
+	</select>
+	
+	<select id="getData" parameterType="com.study.data.vo.DataRecVO" resultType="com.study.data.vo.DataMainboardVO">
+		SELECT a.id AS id
+		    ,  a.year AS year
+		    ,  a.name AS name
+		    ,  a.price AS price
+		    ,  a.img AS img
+		    ,  a.url AS url
+		FROM (SELECT main_id AS id
+		    ,  main_year AS year
+		    ,  main_name AS name
+		    ,  main_price AS price
+		    ,  main_img AS img
+		    ,  main_url AS url
+		    ,  ROWNUM AS rnum
+		        FROM mainboard
+		        WHERE main_form in ('M-ATX', 'ATX')
+		        AND main_cpu_socket = (SELECT cpu_socket
+		                                FROM cpu
+		                                <include refid="recCpu"></include>
+		                                )
+		        AND main_memory_type = (SELECT memory_type
+		                                FROM memory
+		                                <include refid="recMemory"></include>
+		                                )
+		        AND main_price BETWEEN #{price}*1/20 AND #{price}*2/20) a
+		WHERE rnum = (SELECT TRUNC(DBMS_RANDOM.VALUE(1, (SELECT COUNT(*)
+		                                                    FROM mainboard
+		                                                    WHERE main_form in ('M-ATX', 'ATX')
+		                                                    AND main_cpu_socket = (SELECT cpu_socket
+		                                                                            FROM cpu
+		                                                                            <include refid="recCpu"></include>
+		                                                                            )
+		                                                    AND main_memory_type = (SELECT memory_type
+		                                                                            FROM memory
+		                                                                            <include refid="recMemory"></include>
+		                                                                            )
+		                                                    AND main_price BETWEEN #{price}*1/20 AND #{price}*1/10))) 
+		                            FROM dual)
+	</select>
+	
+	<select id="adsData" parameterType="com.study.member.vo.MemberVO" resultType="com.study.data.vo.DataMainboardVO">
+		SELECT main_id AS id 
+			,  main_name AS name 
+			,  main_url AS url
+			,  main_img AS img
+			,  main_price AS price
+			,  main_year AS year
+		FROM (
+		 SELECT ROWNUM as rnum
+		     ,  a.*
+		     FROM (SELECT * FROM mainboard WHERE main_price > 0 ORDER BY main_id) a
+		)
+		WHERE rnum = (SELECT a.main
+		                FROM (SELECT TRUNC(TO_CHAR(sysdate, 'yyyy') - TO_CHAR(b.mem_bir, 'yyyy'), -1) AS age
+		                    ,  b.mem_purpose AS purpose
+		                    ,  c.rnum AS main
+		                    , count(c.rnum)
+		                FROM cart a, member b, ( SELECT ROWNUM as rnum,  a.* FROM (SELECT * FROM mainboard WHERE main_price > 0 ORDER BY main_id) a) c
+		                WHERE a.cart_mem = b.mem_id
+		                AND a.cart_item = c.main_id 
+		                <include refid="adsAge"></include>
+		                <include refid="adsPurpose"></include>
+		                GROUP BY TRUNC(TO_CHAR(sysdate, 'yyyy') - TO_CHAR(b.mem_bir, 'yyyy'), -1), b.mem_purpose, c.rnum 
+		                ORDER BY 4 DESC) a
+		                WHERE rownum = 1)
+	</select>
+</mapper>

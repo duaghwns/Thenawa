@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.study.reserv.service.IReservDao">
+
+	<select id="getList" resultType="com.study.reserv.vo.ReservVO">
+		SELECT
+			reserv_no
+			 , reserv_date
+			 , reserv_time
+			 , reserv_mem
+			 , reserv_gisa
+			 , reserv_req
+		FROM reservation
+		WHERE reserv_date IS NOT NULL
+		AND reserv_time IS NOT NULL
+	</select>
+
+	<insert id="insertRes" parameterType="com.study.reserv.vo.ReservVO" >
+		INSERT INTO reservation VALUES 
+			( res_seq.NEXTVAl, SUBSTR(#{reservDate}, 1, 10), #{reservTime}, #{reservMem}, 'gisa_1', #{reservReq} )
+	</insert>
+
+</mapper>

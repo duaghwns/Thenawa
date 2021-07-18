@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.study.data.service.IDataCPUDao">
+
+	<sql id="align">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchAlign)">
+			<choose>
+				<when test='searchAlign=="hot"'>ORDER BY cpu_id</when>
+			 	<when test='searchAlign=="new"'>ORDER BY cpu_year DESC</when>
+			 	<when test='searchAlign=="low"'>ORDER BY cpu_price</when>
+			 	<when test='searchAlign=="high"'>ORDER BY cpu_price DESC</when>
+			 </choose> 
+		</if>
+	</sql>
+	
+	<sql id="search">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchWord)">
+			AND LOWER(cpu_name) LIKE '%'|| #{searchWord} || '%'
+			OR UPPER(cpu_name) LIKE '%'|| #{searchWord} || '%'
+		</if>
+	</sql>
+
+	<sql id="recMemory">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(memory)">
+			WHERE memory_id = #{memory}
+		</if>
+		<if test="@org.apache.commons.lang3.StringUtils@isBlank(memory)">
+			WHERE memory_id = 'memory_0001'
+		</if>
+	</sql>
+	<sql id="recMain">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(main)">
+			WHERE main_id = #{main}
+		</if>
+		<if test="@org.apache.commons.lang3.StringUtils@isBlank(main)">
+			WHERE main_id = 'main_0002'
+		</if>
+	</sql>
+	
+	<sql id="adsPurpose">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(memPurpose)">
+			AND b.mem_purpose = #{memPurpose}
+		</if>
+		<if test="@org.apache.commons.lang3.StringUtils@isBlank(memPurpose)">
+			AND b.mem_purpose = 'GAME'
+		</if>
+	</sql>
+	
+	<sql id="adsAge">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(memBir)">
+			AND TRUNC(TO_CHAR(sysdate, 'yyyy') - TO_CHAR(b.mem_bir, 'yyyy'), -1) = TRUNC(TO_CHAR(sysdate, 'yyyy') - TO_CHAR(TO_DATE(#{memBir}), 'yyyy'), -1)
+		</if>
+		<if test="@org.apache.commons.lang3.StringUtils@isBlank(memBir)">
+			AND TRUNC(TO_CHAR(sysdate, 'yyyy') - TO_CHAR(b.mem_bir, 'yyyy'), -1) = 20
+		</if>
+	</sql>
+	
+	<!-- 매번 같은 결과가 나오기에 cache 설정을 제거함 -->
+
+	<select id="getDataCount" parameterType="com.study.data.vo.DataSearchVO" resultType="int">
+		SELECT COUNT(*)
+		FROM cpu
+		WHERE 1 = 1
+		AND cpu_price > 0
+		<include refid="search"></include>
+	</select>
+	
+	<!-- return 타입이 List일 때 <>안에 있는것을 작성 -->
+	<select id="getDataList" parameterType="com.study.data.vo.DataSearchVO" resultType="com.study.data.vo.DataCPUVO">
+		SELECT cpu_id AS id
+			,  cpu_year AS year
+            ,  cpu_name AS name
+            ,  cpu_price AS price
+            ,  cpu_img AS img
+            ,  cpu_url AS url
+            ,  cpu_socket
+            ,  cpu_generation
+            ,  cpu_process
+            ,  cpu_core
+            ,  cpu_thread
+            ,  cpu_clock
+            ,  cpu_max_clock
+            ,  cpu_memory_type
+            ,  cpu_memory_bus
+            ,  cpu_inner_gpu
+            ,  cpu_gpu_model
+            ,  cpu_cooler_height
+		FROM (
+		    SELECT rownum as rnum
+		        ,  a.*
+		        FROM(SELECT cpu_id 
+						,  cpu_year 
+			            ,  cpu_name 
+			            ,  cpu_price 
+			            ,  cpu_img 
+			            ,  cpu_url 
+		                ,  cpu_socket
+		                ,  cpu_generation
+		                ,  cpu_process
+		                ,  cpu_core
+		                ,  cpu_thread
+		                ,  cpu_clock
+		                ,  cpu_max_clock
+		                ,  cpu_memory_type
+		                ,  cpu_memory_bus
+		                ,  cpu_inner_gpu
+		                ,  cpu_gpu_model
+		                ,  cpu_cooler_height
+		            FROM cpu
+		            WHERE 1=1
+		            AND cpu_price > 0
+		            <include refid="search"></include>
+		            <include refid="align"></include>
+		            ) a
+		)
+		where rnum between #{firstRow} and #{lastRow}
+	</select>
+	
+	<select id="getData" parameterType="com.study.data.vo.DataRecVO" resultType="com.study.data.vo.DataCPUVO">
+			SELECT a.id AS id
+			    ,  a.year AS year
+			    ,  a.name AS name
+			    ,  a.price AS price
+			    ,  a.img AS img
+			    ,  a.url AS url
+			FROM (SELECT cpu_id AS id
+			    ,  cpu_year AS year
+			    ,  cpu_name AS name
+			    ,  cpu_price AS price
+			    ,  cpu_img AS img
+			    ,  cpu_url AS url
+			    ,  ROWNUM AS rnum
+			        FROM cpu
+			        WHERE cpu_socket = (SELECT main_cpu_socket
+			                            FROM mainboard
+			                            <include refid="recMain"></include>
+			                            )
+			        AND cpu_memory_type = (SELECT memory_type
+			                            FROM memory
+			                            <include refid="recMemory"></include>
+			                            )
+			        AND cpu_price BETWEEN #{price}*3/20 AND #{price}*4/20 ) a
+			WHERE rnum = (SELECT TRUNC(DBMS_RANDOM.VALUE(1, (SELECT COUNT(*)
+			                                                FROM cpu
+			                                                WHERE cpu_socket = (SELECT main_cpu_socket
+			                                                                    FROM mainboard
+			                                                                    <include refid="recMain"></include>
+			                                                                    )
+			                                                AND cpu_memory_type = (SELECT memory_type
+			                                                                    FROM memory
+			                                                                    <include refid="recMemory"></include>
+			                                                                    )
+			                                                AND cpu_price BETWEEN #{price}*3/20 AND #{price}*2/10 )))
+			                FROM dual)
+		
+	</select>
+	
+	<select id="adsData" parameterType="com.study.member.vo.MemberVO" resultType="com.study.data.vo.DataCPUVO">
+		SELECT cpu_id AS id 
+			,  cpu_name AS name 
+			,  cpu_url AS url
+			,  cpu_img AS img
+			,  cpu_price AS price
+			,  cpu_year AS year
+		FROM (
+		 SELECT ROWNUM as rnum
+		     ,  a.*
+		     FROM (SELECT * FROM cpu WHERE cpu_price > 0 ORDER BY cpu_id) a
+		)
+		WHERE rnum = (SELECT a.cpu
+		                FROM (SELECT TRUNC(TO_CHAR(sysdate, 'yyyy') - TO_CHAR(b.mem_bir, 'yyyy'), -1) AS age
+		                    ,  b.mem_purpose AS purpose
+		                    ,  c.rnum AS cpu
+		                    , count(c.rnum)
+		                FROM cart a, member b, ( SELECT ROWNUM as rnum,  a.* FROM (SELECT * FROM cpu WHERE cpu_price > 0 ORDER BY cpu_id) a) c
+		                WHERE a.cart_mem = b.mem_id
+		                AND a.cart_item = c.cpu_id 
+		                <include refid="adsAge"></include>
+		                <include refid="adsPurpose"></include>
+		                GROUP BY TRUNC(TO_CHAR(sysdate, 'yyyy') - TO_CHAR(b.mem_bir, 'yyyy'), -1), b.mem_purpose, c.rnum 
+		                ORDER BY 4 DESC) a
+		                WHERE rownum = 1)
+	</select>
+</mapper>

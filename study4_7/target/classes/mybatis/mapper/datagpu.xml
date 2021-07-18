@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.study.data.service.IDataGPUDao">
+
+	<sql id="align">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchAlign)">
+			<choose>
+				<when test='searchAlign=="hot"'>ORDER BY gpu_id</when>
+			 	<when test='searchAlign=="new"'>ORDER BY gpu_year DESC</when>
+			 	<when test='searchAlign=="low"'>ORDER BY gpu_price</when>
+			 	<when test='searchAlign=="high"'>ORDER BY gpu_price DESC</when>
+			 </choose> 
+		</if>
+	</sql>
+	
+	<sql id="search">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchWord)">
+			AND LOWER(gpu_name) LIKE '%'|| #{searchWord} || '%'
+			OR UPPER(gpu_name) LIKE '%'|| #{searchWord} || '%'
+		</if>
+	</sql>
+
+
+	<select id="getDataCount" parameterType="com.study.data.vo.DataSearchVO" resultType="int">
+		SELECT COUNT(*)
+		FROM gpu
+		WHERE 1 = 1
+		AND gpu_price > 0
+		<include refid="search"></include>
+	</select>
+	
+	<sql id="adsPurpose">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(memPurpose)">
+			AND b.mem_purpose = #{memPurpose}
+		</if>
+		<if test="@org.apache.commons.lang3.StringUtils@isBlank(memPurpose)">
+			AND b.mem_purpose = 'GAME'
+		</if>
+	</sql>
+	
+	<sql id="adsAge">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(memBir)">
+			AND TRUNC(TO_CHAR(sysdate, 'yyyy') - TO_CHAR(b.mem_bir, 'yyyy'), -1) = TRUNC(TO_CHAR(sysdate, 'yyyy') - TO_CHAR(TO_DATE(#{memBir}), 'yyyy'), -1)
+		</if>
+		<if test="@org.apache.commons.lang3.StringUtils@isBlank(memBir)">
+			AND TRUNC(TO_CHAR(sysdate, 'yyyy') - TO_CHAR(b.mem_bir, 'yyyy'), -1) = 20
+		</if>
+	</sql>
+	
+	<!-- return 타입이 List일 때 <>안에 있는것을 작성 -->
+	<select id="getDataList" parameterType="com.study.data.vo.DataSearchVO" resultType="com.study.data.vo.DataGPUVO">
+		SELECT gpu_id AS id
+			,  gpu_year AS year
+            ,  gpu_name AS name
+            ,  gpu_price AS price
+            ,  gpu_img AS img
+            ,  gpu_url AS url
+		FROM (
+		    SELECT rownum as rnum
+		        ,  a.*
+		        FROM(SELECT gpu_id 
+						,  gpu_year 
+			            ,  gpu_name 
+			            ,  gpu_price 
+			            ,  gpu_img 
+			            ,  gpu_url 
+		            FROM gpu
+		            WHERE 1=1
+		            AND gpu_price > 0
+		            <include refid="search"></include>
+		            <include refid="align"></include>
+		            ) a
+		)
+		WHERE rnum between #{firstRow} and #{lastRow}
+	</select>
+	
+	<select id="getData" parameterType="com.study.data.vo.DataRecVO" resultType="com.study.data.vo.DataGPUVO">
+		SELECT a.id AS id
+		    ,  a.year AS year
+		    ,  a.name AS name
+		    ,  a.price AS price
+		    ,  a.img AS img
+		    ,  a.url AS url
+		FROM (SELECT gpu_id AS id
+		            ,  gpu_year AS year
+		            ,  gpu_name AS name
+		            ,  gpu_price AS price
+		            ,  gpu_img AS img
+		            ,  gpu_url AS url
+		            ,  ROWNUM AS rnum
+		        FROM gpu
+		        WHERE gpu_price BETWEEN #{price}*5/20 AND #{price}*3/10) a
+		WHERE rnum = (SELECT TRUNC(DBMS_RANDOM.VALUE(1, (SELECT COUNT(*)
+		                                                    FROM gpu
+		                                                    WHERE gpu_price BETWEEN #{price}*5/20 AND #{price}*3/10) ) ) 
+		              FROM dual)
+	</select>
+	
+	<select id="adsData" parameterType="com.study.member.vo.MemberVO" resultType="com.study.data.vo.DataGPUVO">
+		SELECT gpu_id AS id 
+			,  gpu_name AS name 
+			,  gpu_url AS url
+			,  gpu_img AS img
+			,  gpu_price AS price
+			,  gpu_year AS year
+		FROM (
+		 SELECT ROWNUM as rnum
+		     ,  a.*
+		     FROM (SELECT * FROM gpu WHERE gpu_price > 0 ORDER BY gpu_id) a
+		)
+		WHERE rnum = (SELECT a.gpu
+		                FROM (SELECT TRUNC(TO_CHAR(sysdate, 'yyyy') - TO_CHAR(b.mem_bir, 'yyyy'), -1) AS age
+		                    ,  b.mem_purpose AS purpose
+		                    ,  c.rnum AS gpu
+		                    , count(c.rnum)
+		                FROM cart a, member b, ( SELECT ROWNUM as rnum,  a.* FROM (SELECT * FROM gpu WHERE gpu_price > 0 ORDER BY gpu_id) a) c
+		                WHERE a.cart_mem = b.mem_id
+		                AND a.cart_item = c.gpu_id 
+		                <include refid="adsAge"></include>
+		                <include refid="adsPurpose"></include>
+		                GROUP BY TRUNC(TO_CHAR(sysdate, 'yyyy') - TO_CHAR(b.mem_bir, 'yyyy'), -1), b.mem_purpose, c.rnum 
+		                ORDER BY 4 DESC) a
+		                WHERE rownum = 1)
+	</select>
+</mapper>

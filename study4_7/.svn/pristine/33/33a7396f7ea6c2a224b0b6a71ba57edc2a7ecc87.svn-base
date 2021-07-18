@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.study.member.service.IMemberDao">
+	
+	<insert id="insertMember" parameterType="com.study.member.vo.MemberVO">
+	INSERT INTO member VALUES(
+		#{memId},
+		#{memName},
+		#{memPass},
+		#{memMail},
+		SYSDATE,
+		#{memSex},
+		#{memBir},
+		#{memZip},
+		#{memAdd1},
+		#{memAdd2},
+		#{memHp},
+		#{memPurpose},
+		0,
+		'N'	
+	)
+	</insert>
+	
+	<update id="updateMember" parameterType="com.study.member.vo.MemberVO">
+	 UPDATE member SET
+		 mem_pass = #{memPass},
+		 mem_name = #{memName},
+		 mem_zip = #{memZip},
+		 mem_add1 = #{memAdd1},
+		 mem_add2 = #{memAdd2},
+		 mem_hp = #{memHp},
+		 mem_mail = #{memMail},
+		 mem_purpose = #{memPurpose}
+	 WHERE mem_id = #{memId}
+	</update>
+	
+	<update id="updatePass" parameterType="com.study.member.vo.MemberVO">
+	 UPDATE member SET
+		 mem_pass = #{newMemPass}
+	 WHERE mem_id = #{memId}
+	</update>
+	
+	<update id="deleteMember" parameterType="String">
+	UPDATE member SET mem_delete = 'Y',
+		mem_mileage = 0
+	WHERE mem_id = #{memId}
+	</update>
+	
+	<select id="getMember" parameterType="String" resultType="com.study.member.vo.MemberVO">
+	SELECT mem_id, mem_name, mem_pass,
+		   mem_mail, to_char(mem_reg_date, 'YYYY-MM-DD') AS mem_reg_date, mem_sex,
+		   to_char(mem_bir, 'YYYY-MM-DD') AS mem_bir, mem_zip,
+		   mem_add1, mem_add2, mem_hp, mem_purpose,
+		   mem_mileage, mem_delete
+	FROM member
+	WHERE mem_id = #{memId} AND mem_delete = 'N'
+	</select>
+	
+	<select id="IdChk" parameterType="String" resultType="int">
+	SELECT COUNT(*)
+	FROM member
+	WHERE mem_id = #{memId}
+	</select>
+
+</mapper>

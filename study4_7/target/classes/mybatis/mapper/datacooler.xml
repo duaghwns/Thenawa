@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.study.data.service.IDataCoolerDao">
+
+	<sql id="align">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchAlign)">
+			<choose>
+				<when test='searchAlign=="hot"'>ORDER BY co_id</when>
+			 	<when test='searchAlign=="new"'>ORDER BY co_year DESC</when>
+			 	<when test='searchAlign=="low"'>ORDER BY co_price</when>
+			 	<when test='searchAlign=="high"'>ORDER BY co_price DESC</when>
+			 </choose> 
+		</if>
+	</sql>
+	
+	<sql id="search">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchWord)">
+			AND LOWER(co_name) LIKE '%'|| #{searchWord} || '%' 
+			OR UPPER(co_name) LIKE '%'|| #{searchWord} || '%'
+		</if>
+	</sql>
+
+	<select id="getDataCount" parameterType="com.study.data.vo.DataSearchVO" resultType="int">
+		SELECT COUNT(*)
+		FROM cooler
+		WHERE 1 = 1
+		AND co_price > 0
+		<include refid="search"></include>
+	</select>
+	
+	<!-- return 타입이 List일 때 <>안에 있는것을 작성 -->
+	<select id="getDataList" parameterType="com.study.data.vo.DataSearchVO" resultType="com.study.data.vo.DataCoolerVO">
+		SELECT co_id AS id
+			,  co_year AS year
+            ,  co_name AS name
+            ,  co_price AS price
+            ,  co_img AS img
+            ,  co_url AS url
+		FROM (
+		    SELECT rownum as rnum
+		        ,  a.*
+		        FROM(SELECT co_id 
+						,  co_year 
+			            ,  co_name 
+			            ,  co_price 
+			            ,  co_img 
+			            ,  co_url 
+		            FROM cooler
+		            WHERE 1=1
+		            AND co_price > 0
+		            <include refid="search"></include>
+		            <include refid="align"></include>
+		            ) a
+		)
+		where rnum between #{firstRow} and #{lastRow}
+	</select>
+	
+	<select id="getData" parameterType="com.study.data.vo.DataRecVO" resultType="com.study.data.vo.DataCoolerVO">
+		SELECT a.id AS id
+		    ,  a.year AS year
+		    ,  a.name AS name
+		    ,  a.price AS price
+		    ,  a.img AS img
+		    ,  a.url AS url
+		FROM (SELECT co_id AS id
+		            ,  co_year AS year
+		            ,  co_name AS name
+		            ,  co_price AS price
+		            ,  co_img AS img
+		            ,  co_url AS url
+		            ,  ROWNUM AS rnum
+		        FROM cooler
+		        WHERE co_price BETWEEN #{price}*1/20 AND #{price}*2/20) a
+		WHERE rnum = (SELECT TRUNC(DBMS_RANDOM.VALUE(1, (SELECT COUNT(*)
+		                                                    FROM cooler
+		                                                    WHERE co_price BETWEEN #{price}*1/20 AND #{price}*1/10) ) ) 
+		              FROM dual)
+	</select>
+	
+</mapper>

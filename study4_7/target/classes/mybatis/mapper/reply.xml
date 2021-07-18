@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.study.reply.dao.IReplyDao">
+	<select id="getReplyCountByParent"
+		parameterType="com.study.reply.VO.ReplySearchVO" resultType="int">
+		SELECT
+		COUNT(*)
+		FROM reply
+		WHERE re_parent_no=#{reParentNo}
+		AND
+		re_category=#{reCategory}
+	</select>
+	
+	<!-- list부분에 rownum적용하는 코드 freeboard.xml보고 복사해서 넣으세요 -->
+	<select id="getReplyListByParent"
+		parameterType="com.study.reply.VO.ReplySearchVO"
+		resultType="com.study.reply.VO.ReplyVO">
+		select * from
+		(select a.*,rownum AS rnum from (
+		select
+		re_no,re_category,re_parent_no
+		,re_mem_id
+		,(SELECT mem_name FROM member
+		WHERE re_mem_id=mem_id)
+		AS re_mem_name
+		,re_content,re_ip
+		,TO_CHAR(re_reg_date,'YYYY/MM/DD HH24:MI') AS re_reg_date
+		,TO_CHAR(re_mod_date,'YYYY/MM/DD HH24:MI') AS re_mod_date
+		FROM reply
+		WHERE re_parent_no=#{reParentNo}
+		AND re_category=#{reCategory}
+
+		order by
+		re_no
+		) a ) b
+		where rnum between #{firstRow} and #{lastRow}
+	</select>
+
+	<!-- IReplyDao에 있는 메소드들 작성 -->
+
+
+
+	<select id="getReply" parameterType="int"
+		resultType="com.study.reply.VO.ReplyVO">
+		SELECT re_no
+		, re_category
+		, re_parent_no
+		, re_mem_id
+		, (SELECT
+		mem_name FROM member WHERE re_mem_id = mem_id) AS re_mem_name
+		,
+		re_content
+		, re_ip
+		, TO_CHAR(re_reg_date,'YYYY.MM.DD HH24:MI') AS
+		re_reg_date
+		, TO_CHAR(re_mod_date,'YYYY.MM.DD HH24:MI') AS re_mod_date
+		FROM reply
+		WHERE re_no = #{reNo}
+	</select>
+
+	<insert id="insertReply"
+		parameterType="com.study.reply.VO.ReplyVO">
+		INSERT INTO reply (
+		re_no , re_category , re_parent_no
+		,
+		re_mem_id , re_content , re_ip
+		) VALUES (
+		seq_reply.nextval ,
+		#{reCategory} , #{reParentNo}
+		, #{reMemId} , #{reContent} , #{reIp}
+		)
+	</insert>
+	
+	<update id="updateReply"
+		parameterType="com.study.reply.VO.ReplyVO">
+		UPDATE reply
+		SET re_content = #{reContent}
+		, re_mod_date =
+		SYSDATE
+		WHERE re_no = #{reNo}
+	</update>
+
+	<delete id="deleteReply"
+		parameterType="com.study.reply.VO.ReplyVO">
+		DELETE FROM reply
+		WHERE re_no = #{reNo}
+	</delete>
+
+</mapper>

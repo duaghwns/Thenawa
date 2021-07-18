@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:cache="http://www.springframework.org/schema/cache"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:mybatis-spring="http://mybatis.org/schema/mybatis-spring"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="http://www.springframework.org/schema/cache http://www.springframework.org/schema/cache/spring-cache-4.3.xsd
+		http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-4.3.xsd
+		http://mybatis.org/schema/mybatis-spring http://mybatis.org/schema/mybatis-spring-1.2.xsd
+		http://www.springframework.org/schema/beans https://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.3.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.3.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.3.xsd
+		http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-4.3.xsd">
+
+	<!-- DB 트랜젝션 설정 (AOP)-->
+	<bean id="transactionManager"
+		class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="dataSource" /> <!-- property 는 setter 와 같음 -->
+	</bean>
+
+	<!-- 트랜잭션을 걸 포인트 정함(여기 걸린 곳에서 에러나면 커밋을 하지 않음) -->
+	<aop:config>
+		<aop:pointcut id="requiredTx"
+			expression="execution(* com.study..service.*Impl.*(..))" />
+			<!-- com.study 하위 폴더 중 service 폴더를 찾고 그 안에 Impl로 끝나는 파일 안의 모든 메서드 및 파라미터 -->
+		<aop:advisor advice-ref="txAdvice" pointcut-ref="requiredTx" />
+	</aop:config>
+	
+	<tx:advice id="txAdvice"
+		transaction-manager="transactionManager">
+		<tx:attributes>
+			<tx:method name="get*" read-only="true" />
+			<!-- 서비스의 메소드 중 앞에 get이 들어간 거는 select문으로만 이루어졌으므로 read only를 걸어줌 -->
+		<!--<tx:method name="createNoRBRole" no-rollback-for="NoRoleBackTx" />
+			<tx:method name="createRBRole" rollback-for="RoleBackTx" /> -->
+			<tx:method name="*" rollback-for="com.study.exception.BizException" />
+			<!-- 나머지는 전부 트랜잭션 걸음, BizException이면 rollback를 하라고 함 -->
+		</tx:attributes>
+	</tx:advice>
+
+
+</beans>

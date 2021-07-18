@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.study.data.service.IDataHDDDao">
+
+	<sql id="align">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchAlign)">
+			<choose>
+				<when test='searchAlign=="hot"'>ORDER BY hdd_id</when>
+			 	<when test='searchAlign=="new"'>ORDER BY hdd_year DESC</when>
+			 	<when test='searchAlign=="low"'>ORDER BY hdd_price</when>
+			 	<when test='searchAlign=="high"'>ORDER BY hdd_price DESC</when>
+			 </choose> 
+		</if>
+	</sql>
+	
+	<sql id="search">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchWord)">
+			AND LOWER(hdd_name) LIKE '%'|| #{searchWord} || '%'
+			OR UPPER(hdd_name) LIKE '%'|| #{searchWord} || '%'
+		</if>
+	</sql>
+
+
+	<select id="getDataCount" parameterType="com.study.data.vo.DataSearchVO" resultType="int">
+		SELECT COUNT(*)
+		FROM hdd
+		WHERE 1 = 1
+		AND hdd_price > 0
+		<include refid="search"></include>
+	</select>
+	
+	<!-- return 타입이 List일 때 <>안에 있는것을 작성 -->
+	<select id="getDataList" parameterType="com.study.data.vo.DataSearchVO" resultType="com.study.data.vo.DataHDDVO">
+		SELECT hdd_id AS id
+			,  hdd_year AS year
+            ,  hdd_name AS name
+            ,  hdd_price AS price
+            ,  hdd_img AS img
+            ,  hdd_url AS url
+		FROM (
+		    SELECT rownum as rnum
+		        ,  a.*
+		        FROM(SELECT hdd_id 
+						,  hdd_year 
+			            ,  hdd_name 
+			            ,  hdd_price 
+			            ,  hdd_img 
+			            ,  hdd_url 
+		            FROM hdd
+		            WHERE 1=1
+		            AND hdd_price > 0
+		            <include refid="search"></include>
+		            <include refid="align"></include>
+		            ) a
+		)
+		where rnum between #{firstRow} and #{lastRow}
+	</select>
+	
+	<select id="getData" parameterType="com.study.data.vo.DataRecVO" resultType="com.study.data.vo.DataHDDVO">
+		SELECT a.id AS id
+		    ,  a.year AS year
+		    ,  a.name AS name
+		    ,  a.price AS price
+		    ,  a.img AS img
+		    ,  a.url AS url
+		FROM (SELECT hdd_id AS id
+		            ,  hdd_year AS year
+		            ,  hdd_name AS name
+		            ,  hdd_price AS price
+		            ,  hdd_img AS img
+		            ,  hdd_url AS url
+		            ,  ROWNUM AS rnum
+		        FROM hdd
+		        WHERE hdd_price BETWEEN #{price}*1/20 AND #{price}*1/10) a
+		WHERE rnum = (SELECT TRUNC(DBMS_RANDOM.VALUE(1, (SELECT COUNT(*)
+		                                                    FROM hdd
+		                                                    WHERE hdd_price BETWEEN #{price}*1/20 AND #{price}*1/10) ) ) 
+		              FROM dual)
+	</select>
+	
+</mapper>
